@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Admin</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container flex-between">
+        <div class="navbar-brand">Sertikom Admin</div>
+        <div class="navbar-user">
+          <span class="user-avatar"><%= user.name.charAt(0).toUpperCase() %></span>
+          <div class="navbar-nav">
+            <a href="/admin/dashboard" class="active">Dashboard</a>
+            <a href="/admin/users">User</a>
+            <a href="/admin/documents">Dokumen</a>
+            <a href="/admin/logs">Log</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container page-content">
+      <div class="page-header">
+        <h2>Dashboard Admin</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">Total User</div>
+          <div class="stat-card-value"><%= stats.totalUsers %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Total Dokumen</div>
+          <div class="stat-card-value"><%= stats.totalDocuments %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Dokumen Pending</div>
+          <div class="stat-card-value"><%= stats.pending %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Dokumen Verified</div>
+          <div class="stat-card-value"><%= stats.verified %></div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>Dokumen Terbaru</h3>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama User</th>
+                <th>Nama File</th>
+                <th>Status</th>
+                <th>Waktu Upload</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!recentDocs || recentDocs.length === 0) { %>
+                <tr><td colspan="4">Belum ada dokumen.</td></tr>
+              <% } else { %>
+                <% recentDocs.forEach(doc => { %>
+                  <tr>
+                    <td><%= doc.author_name %></td>
+                    <td><%= doc.file_name %></td>
+                    <td><span class="badge badge-<%= doc.status %>"><%= doc.status %></span></td>
+                    <td><%= doc.uploaded_at %></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>User Terbaru</h3>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!recentUsers || recentUsers.length === 0) { %>
+                <tr><td colspan="4">Belum ada user.</td></tr>
+              <% } else { %>
+                <% recentUsers.forEach(userItem => { %>
+                  <tr>
+                    <td><%= userItem.name %></td>
+                    <td><%= userItem.email %></td>
+                    <td><span class="badge badge-primary"><%= userItem.role %></span></td>
+                    <td><span class="badge badge-<%= userItem.status %>"><%= userItem.status %></span></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

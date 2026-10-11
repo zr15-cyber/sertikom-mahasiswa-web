@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Mahasiswa</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container flex-between">
+        <div class="navbar-brand">Sertikom</div>
+        <div class="navbar-user">
+          <span class="user-avatar"><%= user.name.charAt(0).toUpperCase() %></span>
+          <div class="navbar-nav">
+            <a href="/user/dashboard" class="active">Dashboard</a>
+            <a href="/user/profile">Profil</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container page-content">
+      <div class="page-header">
+        <h2>Halo, <%= user.name %></h2>
+      </div>
+
+      <% if (success_msg && success_msg.length) { %>
+        <div class="alert alert-success"><span class="alert-icon">✓</span><span><%= success_msg %></span></div>
+      <% } %>
+      <% if (error_msg && error_msg.length) { %>
+        <div class="alert alert-error"><span class="alert-icon">!</span><span><%= error_msg %></span></div>
+      <% } %>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">Total Dokumen</div>
+          <div class="stat-card-value"><%= stats.totalDocs %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Pending</div>
+          <div class="stat-card-value"><%= stats.pending %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Verified</div>
+          <div class="stat-card-value"><%= stats.verified %></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Rejected</div>
+          <div class="stat-card-value"><%= stats.rejected %></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3>Upload Dokumen</h3>
+          </div>
+          <form action="/user/upload" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="document">Pilih File</label>
+              <input id="document" type="file" name="document" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Dokumen</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Tambah Jadwal</h3>
+          </div>
+          <form action="/user/schedule" method="POST">
+            <div class="form-group">
+              <label for="date">Tanggal</label>
+              <input id="date" type="date" name="date" required />
+            </div>
+            <div class="form-group">
+              <label for="time">Waktu</label>
+              <input id="time" type="time" name="time" required />
+            </div>
+            <div class="form-group">
+              <label for="title">Judul</label>
+              <input id="title" type="text" name="title" placeholder="Judul jadwal" required />
+            </div>
+            <div class="form-group">
+              <label for="notes">Catatan</label>
+              <textarea id="notes" name="notes" placeholder="Catatan tambahan..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">Simpan Jadwal</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>Dokumen Saya</h3>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama File</th>
+                <th>Status</th>
+                <th>Waktu Upload</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!docs || docs.length === 0) { %>
+                <tr>
+                  <td colspan="3" class="text-muted">Belum ada dokumen yang diupload.</td>
+                </tr>
+              <% } else { %>
+                <% docs.forEach(doc => { %>
+                  <tr>
+                    <td><%= doc.file_name %></td>
+                    <td><span class="badge badge-<%= doc.status %>"><%= doc.status %></span></td>
+                    <td><%= doc.uploaded_at %></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>Notifikasi</h3>
+        </div>
+        <% if (!notifications || notifications.length === 0) { %>
+          <p class="text-muted">Belum ada notifikasi.</p>
+        <% } else { %>
+          <% notifications.forEach(item => { %>
+            <div class="notification-item <%= item.type %>">
+              <div class="notification-title"><%= item.title %></div>
+              <div class="notification-message"><%= item.message %></div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h3>Jadwal Saya</h3>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Judul</th>
+                <th>Tanggal</th>
+                <th>Waktu</th>
+                <th>Catatan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!schedules || schedules.length === 0) { %>
+                <tr>
+                  <td colspan="4" class="text-muted">Belum ada jadwal.</td>
+                </tr>
+              <% } else { %>
+                <% schedules.forEach(schedule => { %>
+                  <tr>
+                    <td><%= schedule.title %></td>
+                    <td><%= schedule.date %></td>
+                    <td><%= schedule.time %></td>
+                    <td><%= schedule.notes || '-' %></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

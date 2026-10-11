@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profil Mahasiswa</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container flex-between">
+        <div class="navbar-brand">Sertikom</div>
+        <div class="navbar-user">
+          <div class="navbar-nav">
+            <a href="/user/dashboard">Dashboard</a>
+            <a href="/user/profile" class="active">Profil</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container page-content">
+      <div class="card auth-card" style="margin: 0 auto;">
+        <h2>Profil</h2>
+
+        <% if (success_msg && success_msg.length) { %>
+          <div class="alert alert-success"><span class="alert-icon">✓</span><span><%= success_msg %></span></div>
+        <% } %>
+        <% if (error_msg && error_msg.length) { %>
+          <div class="alert alert-error"><span class="alert-icon">!</span><span><%= error_msg %></span></div>
+        <% } %>
+
+        <form action="/user/profile/update" method="POST">
+          <div class="form-group">
+            <label for="name">Nama Lengkap</label>
+            <input id="name" type="text" name="name" value="<%= user.name %>" required />
+          </div>
+          <div class="form-group">
+            <label for="nim">NIM</label>
+            <input id="nim" type="text" name="nim" value="<%= user.nim || '' %>" placeholder="Masukkan NIM" />
+          </div>
+          <div class="form-group">
+            <label for="phone">Nomor HP</label>
+            <input id="phone" type="text" name="phone" value="<%= user.phone || '' %>" placeholder="Masukkan nomor HP" />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;">Simpan Perubahan</button>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,106 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const bcrypt = require('bcryptjs');
+
+const dbPath = path.join(__dirname, '..', 'db', 'sertikom.db');
+const db = new sqlite3.Database(dbPath);
+
+function init() {
+  db.serialize(() => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT,
+        google_id TEXT,
+        nim TEXT,
+        phone TEXT,
+        role TEXT DEFAULT 'user',
+        status TEXT DEFAULT 'pending',
+        profile_picture TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_type TEXT,
+        file_size INTEGER,
+        status TEXT DEFAULT 'pending',
+        verification_notes TEXT,
+        verified_by INTEGER,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        verified_at TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(verified_by) REFERENCES users(id)
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT,
+        status TEXT DEFAULT 'scheduled',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT DEFAULT 'info',
+        is_read INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER,
+        action TEXT NOT NULL,
+        target_id INTEGER,
+        target_type TEXT,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(admin_id) REFERENCES users(id)
+      )
+    `);
+
+    // default admin account
+    db.get('SELECT * FROM users WHERE email = ?', ['admin@sertikom.com'], async (err, row) => {
+      if (!row) {
+        const hashedPassword = await bcrypt.hash('Admin@123', 10);
+        db.run(
+          'INSERT INTO users (name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+          ['Admin Sertikom', 'admin@sertikom.com', hashedPassword, 'admin', 'active'],
+          (insertErr) => {
+            if (!insertErr) {
+              console.log('✓ Default admin created: admin@sertikom.com / Admin@123');
+            }
+          }
+        );
+      }
+    });
+
+    console.log('✓ Database initialized successfully');
+  });
+}
+
+module.exports = { db, init };

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Activity Log</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container flex-between">
+        <div class="navbar-brand">Sertikom Admin</div>
+        <div class="navbar-user">
+          <div class="navbar-nav">
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/users">User</a>
+            <a href="/admin/documents">Dokumen</a>
+            <a href="/admin/logs" class="active">Log</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container page-content">
+      <div class="page-header">
+        <h2>Activity Log</h2>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Detail</th>
+                <th>Waktu</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!logs || logs.length === 0) { %>
+                <tr><td colspan="4">Belum ada log aktivitas.</td></tr>
+              <% } else { %>
+                <% logs.forEach(log => { %>
+                  <tr>
+                    <td><%= log.action %></td>
+                    <td><%= log.target_type || '-' %></td>
+                    <td><%= log.details || '-' %></td>
+                    <td><%= log.created_at %></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

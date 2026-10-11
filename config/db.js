@@ -1,117 +1,177 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const bcrypt = require('bcryptjs');
+const express = require('express');
+const fs = require('fs');
+const { db } = require('../config/db');
+const { ensureAdmin } = require('../middleware/auth');
 
-const dbPath = path.join(__dirname, '..', 'db', 'sertikom.db');
-const db = new sqlite3.Database(dbPath);
+const router = express.Router();
 
-function init() {
-  db.serialize(() => {
-    // Table Users
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT,
-        google_id TEXT,
-        nim TEXT,
-        phone TEXT,
-        role TEXT DEFAULT 'user',
-        status TEXT DEFAULT 'pending',
-        profile_picture TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Table Documents
-    db.run(`
-      CREATE TABLE IF NOT EXISTS documents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        file_type TEXT,
-        file_size INTEGER,
-        status TEXT DEFAULT 'pending',
-        verification_notes TEXT,
-        verified_by INTEGER,
-        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        verified_at TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        FOREIGN KEY(verified_by) REFERENCES users(id)
-      )
-    `);
-
-    // Table Schedules
-    db.run(`
-      CREATE TABLE IF NOT EXISTS schedules (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        title TEXT NOT NULL,
-        notes TEXT,
-        status TEXT DEFAULT 'scheduled',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Table Notifications
-    db.run(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        title TEXT NOT NULL,
-        message TEXT NOT NULL,
-        type TEXT DEFAULT 'info',
-        is_read INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Table Activity Logs
-    db.run(`
-      CREATE TABLE IF NOT EXISTS activity_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        admin_id INTEGER,
-        action TEXT NOT NULL,
-        target_id INTEGER,
-        target_type TEXT,
-        details TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(admin_id) REFERENCES users(id)
-      )
-    `);
-
-    // Insert default admin account
-    db.get('SELECT * FROM users WHERE email = ?', ['admin@sertikom.com'], async (err, row) => {
-      if (!row) {
-        const hashedPassword = await bcrypt.hash('Admin@123', 10);
-        db.run(
-          `INSERT INTO users (name, email, password, role, status) VALUES (?, ?, ?, ?, ?)
-           SELECT ?, ?, ?, ?, ?
-           WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`,
-          ['Admin Sertikom', 'admin@sertikom.com', hashedPassword, 'admin', 'active',
-           'Admin Sertikom', 'admin@sertikom.com', hashedPassword, 'admin', 'active',
-           'admin@sertikom.com'],
-          function(err) {
-            if (!err) {
-              console.log('✓ Default admin account created');
-              console.log('  Email: admin@sertikom.com');
-              console.log('  Password: Admin@123');
-            }
-          }
-        );
-      }
+router.get('/dashboard', ensureAdmin, (req, res) => {
+  db.get('SELECT COUNT(*) AS total FROM users', (errUsers, userCount) => {
+    db.get('SELECT COUNT(*) AS total FROM documents', (errDocs, docCount) => {
+      db.get("SELECT COUNT(*) AS total FROM documents WHERE status = 'pending'", (errPending, pendingCount) => {
+        db.get("SELECT COUNT(*) AS total FROM documents WHERE status = 'verified'", (errVerified, verifiedCount) => {
+          db.all('SELECT d.*, u.name AS author_name FROM documents d JOIN users u ON u.id = d.user_id ORDER BY d.uploaded_at DESC LIMIT 10', (errRecentDocs, recentDocs) => {
+            db.all('SELECT * FROM users ORDER BY created_at DESC LIMIT 10', (errRecentUsers, recentUsers) => {
+              db.all('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 10', (errLogs, logs) => {
+                res.render('admin/dashboard', {
+                  user: req.user,
+                  stats: {
+                    totalUsers: userCount.total,
+                    totalDocuments: docCount.total,
+                    pending: pendingCount.total,
+                    verified: verifiedCount.total
+                  },
+                  recentDocs,
+                  recentUsers,
+                  logs
+                });
+              });
+            });
+          });
+        });
+      });
     });
-
-    console.log('✓ Database initialized successfully');
   });
-}
+});
 
-module.exports = { db, init };
+router.get('/users', ensureAdmin, (req, res) => {
+  db.all('SELECT * FROM users ORDER BY created_at DESC', (err, users) => {
+    if (err) return res.status(500).send('Error');
+    res.render('admin/users', { user: req.user, users });
+  });
+});
+
+router.post('/user/:id/status', ensureAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const validStatuses = ['pending', 'active', 'banned'];
+
+  if (!validStatuses.includes(status)) {
+    return res.json({ success: false, message: 'Status tidak valid.' });
+  }
+
+  db.run('UPDATE users SET status = ? WHERE id = ?', [status, id], (err) => {
+    if (err) {
+      return res.json({ success: false, message: 'Gagal mengubah status.' });
+    }
+
+    db.run(
+      'INSERT INTO activity_logs (admin_id, action, target_id, target_type, details) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, 'user_status_update', id, 'user', `Status user diubah menjadi ${status}`]
+    );
+
+    return res.json({ success: true });
+  });
+});
+
+router.post('/user/:id/role', ensureAdmin, (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  const validRoles = ['user', 'admin'];
+
+  if (!validRoles.includes(role)) {
+    return res.json({ success: false, message: 'Role tidak valid.' });
+  }
+
+  db.run('UPDATE users SET role = ? WHERE id = ?', [role, id], (err) => {
+    if (err) {
+      return res.json({ success: false, message: 'Gagal mengubah role.' });
+    }
+
+    db.run(
+      'INSERT INTO activity_logs (admin_id, action, target_id, target_type, details) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, 'user_role_update', id, 'user', `Role user diubah menjadi ${role}`]
+    );
+
+    return res.json({ success: true });
+  });
+});
+
+router.get('/documents', ensureAdmin, (req, res) => {
+  db.all(
+    'SELECT d.*, u.name, u.email FROM documents d JOIN users u ON u.id = d.user_id ORDER BY d.uploaded_at DESC',
+    (err, docs) => {
+      if (err) return res.status(500).send('Error');
+      res.render('admin/documents', { user: req.user, docs });
+    }
+  );
+});
+
+router.get('/logs', ensureAdmin, (req, res) => {
+  db.all('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50', (err, logs) => {
+    if (err) return res.status(500).send('Error');
+    res.render('admin/logs', { user: req.user, logs });
+  });
+});
+
+router.post('/document/:id/verify', ensureAdmin, (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  db.get('SELECT * FROM documents WHERE id = ?', [id], (err, doc) => {
+    if (!doc) {
+      return res.json({ success: false, message: 'Dokumen tidak ditemukan.' });
+    }
+
+    db.run(
+      'UPDATE documents SET status = ?, verification_notes = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['verified', notes || '', req.user.id, id],
+      (updateErr) => {
+        if (updateErr) {
+          return res.json({ success: false, message: 'Gagal verifikasi dokumen.' });
+        }
+
+        db.run(
+          'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)',
+          [doc.user_id, 'Dokumen Diverifikasi', 'Dokumen Anda telah berhasil diverifikasi.', 'success']
+        );
+
+        db.run(
+          'INSERT INTO activity_logs (admin_id, action, target_id, target_type, details) VALUES (?, ?, ?, ?, ?)',
+          [req.user.id, 'document_verified', id, 'document', `Dokumen ${id} diverifikasi`]
+        );
+
+        return res.json({ success: true });
+      }
+    );
+  });
+});
+
+router.post('/document/:id/reject', ensureAdmin, (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  if (!notes || !notes.trim()) {
+    return res.json({ success: false, message: 'Alasan penolakan wajib diisi.' });
+  }
+
+  db.get('SELECT * FROM documents WHERE id = ?', [id], (err, doc) => {
+    if (!doc) {
+      return res.json({ success: false, message: 'Dokumen tidak ditemukan.' });
+    }
+
+    db.run(
+      'UPDATE documents SET status = ?, verification_notes = ?, verified_by = ?, verified_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['rejected', notes, req.user.id, id],
+      (updateErr) => {
+        if (updateErr) {
+          return res.json({ success: false, message: 'Gagal menolak dokumen.' });
+        }
+
+        db.run(
+          'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)',
+          [doc.user_id, 'Dokumen Ditolak', `Dokumen Anda ditolak. Alasan: ${notes}`, 'danger']
+        );
+
+        db.run(
+          'INSERT INTO activity_logs (admin_id, action, target_id, target_type, details) VALUES (?, ?, ?, ?, ?)',
+          [req.user.id, 'document_rejected', id, 'document', `Dokumen ${id} ditolak`]
+        );
+
+        return res.json({ success: true });
+      }
+    );
+  });
+});
+
+module.exports = router;

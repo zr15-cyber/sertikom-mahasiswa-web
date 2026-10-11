@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manajemen Dokumen</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container flex-between">
+        <div class="navbar-brand">Sertikom Admin</div>
+        <div class="navbar-user">
+          <div class="navbar-nav">
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/users">User</a>
+            <a href="/admin/documents" class="active">Dokumen</a>
+            <a href="/admin/logs">Log</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container page-content">
+      <div class="page-header">
+        <h2>Manajemen Dokumen</h2>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama User</th>
+                <th>Nama File</th>
+                <th>Status</th>
+                <th>Catatan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (!docs || docs.length === 0) { %>
+                <tr><td colspan="5">Belum ada dokumen.</td></tr>
+              <% } else { %>
+                <% docs.forEach(doc => { %>
+                  <tr>
+                    <td><%= doc.name %></td>
+                    <td><%= doc.file_name %></td>
+                    <td><span class="badge badge-<%= doc.status %>"><%= doc.status %></span></td>
+                    <td><%= doc.verification_notes || '-' %></td>
+                    <td>
+                      <% if (doc.status !== 'verified') { %>
+                        <button class="btn btn-small btn-success" data-action="verify" data-id="<%= doc.id %>">Verify</button>
+                      <% } %>
+                      <button class="btn btn-small btn-danger" data-action="reject" data-id="<%= doc.id %>">Reject</button>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/main.js"></script>
+  </body>
+</html>
